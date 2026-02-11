@@ -1,8 +1,10 @@
-import dotenv from "dotenv";
-dotenv.config({ path: "./.env" });
+import "./config/env.js";   // 👈 MUST be first
 
 import connectDb from "./db/index.js";
-import { app } from "./app.js";   // ✅ import existing app
+import { app } from "./app.js";
+
+
+
 
 
 // ---------------APproach 1:  ------------------
