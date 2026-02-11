@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import {userModel} from "../models/user.js";
+import jwt from "jsonwebtoken";
 
 import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import  ApiResponse  from "../utils/ApiResponse.js";
@@ -156,13 +157,64 @@ const options={
 return res.status(200)
 .cookie("accessToken", accessToken, options)
 .cookie("refreshToken", refreshToken, options)
-.json( new ApiResponse(200,"Login successful",{accessToken, refreshToken}));wh
+.json( new ApiResponse(200,"Login successful",{accessToken, refreshToken}));
 
 // send cookies to client
+});
 
+// When access token expires, frontend calls this endpoint with refresh token (from cookie)
+// to get a new access token — no re-login needed
 
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies?.refreshToken || req.body?.refreshToken;
 
-})
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized - Refresh token required");
+  }
+
+  let decoded;
+  // decoded means it removes the decoded data from it 
+  // like in refresh token we decoded only id so we get id from the incoming refresh token
+  try {
+    decoded = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+  } catch {
+    throw new ApiError(401, "Invalid or expired refresh token");
+  }
+
+  const user = await userModel
+    .findById(decoded._id)
+    .select("+refreshtoken");
+
+  if (!user) {
+    throw new ApiError(401, "User not found");
+  }
+
+  // user.refreshToken is the token in db
+  if (incomingRefreshToken !== user.refreshtoken) {
+    throw new ApiError(401, "Refresh token is invalid or revoked");
+  }
+
+  const newAccessToken = await user.generateAccessToken();
+
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 1000 * 60 * 60 * 24 * 30,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", newAccessToken, options)
+    .json(
+      new ApiResponse(200, "Token refreshed", {
+        accessToken: newAccessToken,
+      })
+    );
+});
 
 const logoutUser = asyncHandler(async (req, res) => {
   
@@ -189,7 +241,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "Logged out successfully", {}));
 });
 
-export { registerUser ,loginUser , logoutUser};
+export { registerUser, loginUser, refreshAccessToken, logoutUser };
 
 
 // Cookie: a small piece of data that the browser stores and automatically sends with every request to your server for that domain.

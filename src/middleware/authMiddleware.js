@@ -8,11 +8,11 @@ export const authMiddleware = asyncHandler(async (req,res,next)=>{
     const accessToken = req.cookies?.accessToken || req.headers?.authorization?.split(" ")[1];
 
     if(!accessToken){
-        throw new ApiError(401),"Unauthorized user"
+        throw new ApiError(401, "Unauthorized user")
     }
     let decoded;
     try{
-    const decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET)
+    decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET)
     }catch(error){
         throw new ApiError(401,"Unauthorized user")
     }
