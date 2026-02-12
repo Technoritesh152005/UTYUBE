@@ -7,9 +7,6 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import  ApiResponse  from "../utils/ApiResponse.js";
 import fs from "fs";
 
-
-
-
 // passing async function to asyncHandler to handle try-catch internally
 const registerUser = asyncHandler(async (req, res) => {
 
@@ -241,7 +238,154 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "Logged out successfully", {}));
 });
 
-export { registerUser, loginUser, refreshAccessToken, logoutUser };
+ const changeUserPassword = asyncHandler(async(req,res)=>{
+  const{oldPassword,newPassword} = req.body
+// we get req.body cause we pass req.user = user in auth middleware
+  const user = await userModel.findById(req.user?._id)
+  const isPasswordCorrect = awaituser.isPasswordMatch(oldPassword)
+
+  if(!isPasswordCorrect){
+    throw new ApiError(400,"Invalid Old password")
+  }
+  user.password = newPassword;
+  await user.save({validateBeforeSave:false});
+
+  return res.status(200)
+  .json(new ApiResponse(200,"Password changed succesfully"))
+})
+
+const getCurrentUser =asyncHandler(async(req,res)=>{
+  return res.status(200)
+  .json(200,req.user,"Current user fetched succesuflly")
+})
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email, username, newPassword, confirmPassword } = req.body;
+
+  if (!email && !username) {
+    throw new ApiError(400, "Please provide email or username to change password");
+  }
+  if (!newPassword || !confirmPassword) {
+    throw new ApiError(400, "New password and confirm password are required");
+  }
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "Both passwords do not match");
+  }
+  if (newPassword.length < 6 || !/\d/.test(newPassword)) {
+    throw new ApiError(
+      400,
+      "Password must be at least 6 characters and include a number"
+    );
+  }
+
+  const orConditions = [];
+  if (email?.trim()) orConditions.push({ email: email.toLowerCase().trim() });
+  if (username?.trim()) orConditions.push({ username: username.toLowerCase().trim() });
+  if (orConditions.length === 0) {
+    throw new ApiError(400, "Please provide a valid email or username");
+  }
+
+  // we are passing like this only
+  // [
+  //   {
+  //     email:email
+  //   }
+  // ]
+  const user = await userModel.findOne({ $or: orConditions });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+
+  await userModel.findByIdAndUpdate(user._id, {
+    $set: { refreshtoken: null },
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Password changed successfully", {}));
+});
+
+// for changing files always try to keep different controller
+const updateAccountDetails = asyncHandler(async(req,res)=>{
+  const{fullname,email,username} = req.body
+  
+  if(!email || !password){
+    throw new ApiError(400,"All fields r required")
+  }
+
+  const user = userModel.findByIdAndUpdate(req.user?._id,
+    {
+      $set:{
+        email:email,
+        fullname:fullname,
+        email:email,
+      }
+    },
+    // return updated data
+    {
+      new:true,
+    }
+  )
+  .select("-password")
+
+  return res.status(200)
+  .json( new ApiResponse(200,"User details changed / updated successfully",updateAccountDetails))
+
+})
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const localAvatarPath = req.file?.path;
+  if (!localAvatarPath) {
+    throw new ApiError(400, "Avatar file is missing");
+  }
+
+  const avatarUrl = await uploadOnCloudinary(localAvatarPath);
+  if (!avatarUrl) {
+    throw new ApiError(500, "Error while uploading avatar");
+  }
+
+  const updatedUser = await userModel
+    .findByIdAndUpdate(
+      req.user?._id,
+      { $set: { avatar: avatarUrl.secure_url } },
+      { new: true }
+    )
+    .select("-password -refreshtoken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Avatar updated successfully", updatedUser));
+});
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverimagepath = req.file?.path;
+  if (!coverimagepath) {
+    throw new ApiError(400, "Cover image file is missing");
+  }
+
+  const cover = await uploadOnCloudinary(coverimagepath);
+  if (!cover) {
+    throw new ApiError(500, "Error while uploading avatar");
+  }
+
+  const updatedUser = await userModel
+    .findByIdAndUpdate(
+      req.user?._id,
+      { $set: { coverimage: cover.secure_url } },
+      { new: true }
+    )
+    .select("-password -refreshtoken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Cover image updated successfully", updatedUser));
+});
+
+export { registerUser, loginUser, refreshAccessToken, logoutUser, changeUserPassword, getCurrentUser, forgotPassword, updateAccountDetails, updateUserAvatar , updateUserCoverImage};
 
 
 // Cookie: a small piece of data that the browser stores and automatically sends with every request to your server for that domain.
