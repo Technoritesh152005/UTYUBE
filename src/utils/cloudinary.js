@@ -61,6 +61,24 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_SECRET_KEY,
 });
 
-// export function
-export { uploadOnCloudinary };
+/**
+ * Delete file from Cloudinary
+ * @param {string} publicId - Cloudinary public_id of the asset
+ * @param {string} resourceType - "image" | "video" | "raw"
+ * @returns {object|null} Cloudinary delete response or null if failed
+ */
+const deleteFromCloudinary = async (publicId, resourceType = "image") => {
+  try {
+    if (!publicId) return null;
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+    });
+    return result;
+  } catch (error) {
+    console.log("Cloudinary delete error:", error);
+    return null;
+  }
+};
+
+export { uploadOnCloudinary, deleteFromCloudinary };
 

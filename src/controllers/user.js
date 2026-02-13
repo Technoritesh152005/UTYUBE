@@ -2,10 +2,9 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import {userModel} from "../models/user.js";
 import jwt from "jsonwebtoken";
-
 import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import  ApiResponse  from "../utils/ApiResponse.js";
-import fs from "fs";
+
 
 // passing async function to asyncHandler to handle try-catch internally
 const registerUser = asyncHandler(async (req, res) => {
@@ -161,7 +160,6 @@ return res.status(200)
 
 // When access token expires, frontend calls this endpoint with refresh token (from cookie)
 // to get a new access token — no re-login needed
-
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
     req.cookies?.refreshToken || req.body?.refreshToken;
@@ -238,26 +236,40 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "Logged out successfully", {}));
 });
 
- const changeUserPassword = asyncHandler(async(req,res)=>{
-  const{oldPassword,newPassword} = req.body
-// we get req.body cause we pass req.user = user in auth middleware
-  const user = await userModel.findById(req.user?._id)
-  const isPasswordCorrect = awaituser.isPasswordMatch(oldPassword)
-
-  if(!isPasswordCorrect){
-    throw new ApiError(400,"Invalid Old password")
+const changeUserPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const user = await userModel.findById(req.user?._id).select("+password");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  const isPasswordCorrect = await user.isPasswordMatch(oldPassword);
+  if (!isPasswordCorrect) {
+    throw new ApiError(400, "Invalid old password");
+  }
+  if (newPassword.length < 6 || !/\d/.test(newPassword)) {
+    throw new ApiError(
+      400,
+      "Password must be at least 6 characters and include a number"
+    );
   }
   user.password = newPassword;
-  await user.save({validateBeforeSave:false});
+  await user.save({ validateBeforeSave: false });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Password changed successfully", {}));
+});
 
-  return res.status(200)
-  .json(new ApiResponse(200,"Password changed succesfully"))
-})
-
-const getCurrentUser =asyncHandler(async(req,res)=>{
-  return res.status(200)
-  .json(200,req.user,"Current user fetched succesuflly")
-})
+const getCurrentUser = asyncHandler(async (req, res) => {
+  const user = await userModel
+    .findById(req.user?._id)
+    .select("-password -refreshtoken");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Current user fetched successfully", user));
+});
 
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email, username, newPassword, confirmPassword } = req.body;
@@ -362,6 +374,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
+  
   const coverimagepath = req.file?.path;
   if (!coverimagepath) {
     throw new ApiError(400, "Cover image file is missing");
@@ -419,3 +432,9 @@ export { registerUser, loginUser, refreshAccessToken, logoutUser, changeUserPass
 // This combo gives:
 // Better security: access token is short‑lived, so stolen tokens are less useful.
 // Better UX: refresh token lets users stay logged in for a long time without typing password again.
+
+// while pushing the code
+// git status
+// git add .
+// git commit -m "your message"
+// git push origin main

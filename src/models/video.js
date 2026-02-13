@@ -7,9 +7,15 @@ const videoSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    videoFilePublicId: {
+      type: String,
+    },
     thumbnail: {
       type: String,
       required: true,
+    },
+    thumbnailPublicId: {
+      type: String,
     },
     title: {
       type: String,
@@ -34,7 +40,7 @@ const videoSchema = new mongoose.Schema(
     },
     videoowner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "UserModel",
+      ref: "User",
     },
   },
   {
@@ -42,6 +48,6 @@ const videoSchema = new mongoose.Schema(
   },
 );
 
-VideoSchema.plugin(mongooseAggregatePaginate);
+videoSchema.plugin(mongooseAggregatePaginate);
 
-export const VideoModel = mongoose.model("Video", videoSchema);
+export const videoModel = mongoose.model("Video", videoSchema);
