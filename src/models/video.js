@@ -17,6 +17,7 @@ const videoSchema = new mongoose.Schema(
     thumbnailPublicId: {
       type: String,
     },
+    
     title: {
       type: String,
       required: true,

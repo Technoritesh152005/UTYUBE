@@ -63,20 +63,45 @@ const getVideoById = asyncHandler (async(req,res)=>{
     if(!mongoose.Types.ObjectId.isValid(id)){
         throw new ApiError(400, "Invalid video ID");
     }
-    const searchedVideo = videoModel.findById(id)
+    const searchedVideo = await videoModel.findById(id)
     if(!searchedVideo){
         throw new ApiError(404, "Video Not found ")
     }
+    searchedVideo.views = searchedVideo.views+1
+    await searchedVideo.save();
     return res.status(200)
     .json(new ApiResponse(200, "Video fetched successfully", searchedVideo));
 })
 
-const getAllVideos = asyncHandler (async(req,res)=>{
-    const allVideo = await videoModel.find({})
+const getAllVideos = asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    return res.status(200)
-    .json(new ApiResponse(200, "All videos fetched successfully", allVideo));
-})
+    const videos = await videoModel
+        .find({})
+        .skip(skip)
+        .limit(limit)
+        // return newest first
+        .sort({ createdAt: -1 });
+
+    const totalVideos = await videoModel.countDocuments({});
+    const totalPages = Math.ceil(totalVideos / limit);
+
+    return res.status(200).json(
+        new ApiResponse(200, "Videos fetched successfully", {
+            videos,
+            pagination: {
+                page,
+                limit,
+                totalVideos,
+                totalPages,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1,
+            },
+        })
+    );
+});
 
 const updateVideo = asyncHandler(async (req, res) => {
 
@@ -165,7 +190,65 @@ const deleteVideo = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, "Video deleted successfully"));
 })
 
+const getVideoByChannel = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const videos = await videoModel
+        .find({ videoowner: userId })
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+
+    const totalVideos = await videoModel.countDocuments({ videoowner: userId });
+    const totalPages = Math.ceil(totalVideos / limit);
+
+    return res.status(200).json(
+        new ApiResponse(200, "Channel videos fetched successfully", {
+            videos,
+            pagination: {
+                page,
+                limit,
+                totalVideos,
+                totalPages,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1,
+            },
+        })
+    );
+})
+
+const searchVideos = asyncHandler(async(req,res)=>{
+    // GET /api/v1/users/search?q=coding
+    //                           ↑
+    //                      this is q
+    const {q} = req.query;
+
+    if(!q){
+        throw new ApiError("Query is required to searchedVideo")
+    }
+
+    await videoModel.find(
+        // user can provide any content but mongodb work is to find it by its title or its description
+
+        {
+            $or:[
+                {
+                    // regex helps to find similar content according to query 
+                    // $options:"i" helps to search incasesensitive means if u search coding it will not only search coding but also search Coding , CODINGand so on/... it is also known as case insensitive matching
+                    title: {$regex : q.trim() , $options:"i" }
+                },
+                {
+                    description:{ $regex:q.trim() , $options:"i"}
+                }
+            ]
+        }
+    )
+    
+})
 
 
-export { uploadVideoInYoutube, getVideoById, updateVideo, getAllVideos, deleteVideo };
+export { uploadVideoInYoutube, getVideoById, updateVideo, getAllVideos, deleteVideo, getVideoByChannel, searchVideos };
 

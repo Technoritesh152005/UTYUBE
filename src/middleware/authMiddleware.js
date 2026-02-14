@@ -7,6 +7,7 @@ export const authMiddleware = asyncHandler(async (req,res,next)=>{
     // cookies are stored in req.cookies and headers are stored in req.headers
     const accessToken = req.cookies?.accessToken || req.headers?.authorization?.split(" ")[1];
 
+    
     if(!accessToken){
         throw new ApiError(401, "Unauthorized user")
     }

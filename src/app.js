@@ -30,9 +30,15 @@ app.use(express.static("public"));
 
 //
 import userRoutes from "./routes/user.js";
+import subscriptionRoutes from "./routes/subscription.js";
+import likeRoutes from "./routes/like.js";
+import commentRoutes from "./routes/comment.js";
 
 // routed declaration
 app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/subscriptions", subscriptionRoutes);
+app.use("/api/v1/likes", likeRoutes);
+app.use("/api/v1/comments", commentRoutes);
 // whenever user clicks /users it goes to userroutes then in userrouter control is pass to some controller and pass to controller
 // router meh bhi route hota hai
 // /users/register -> userRoutes -> userController -> registerUser function

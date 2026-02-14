@@ -6,7 +6,12 @@ import {
   uploadVideoInYoutube,
   updateVideo,
   deleteVideo,
+  getVideoByChannel,
+  searchVideos,
+  getVideoById,
+  getAllVideos,
 } from "../controllers/video.js";
+
 
 
 import {
@@ -54,9 +59,14 @@ router
     ]),
     uploadVideoInYoutube
   );
+router.route("/channel-videos").get(authMiddleware, getVideoByChannel);
+router.route("/search").get(searchVideos);
+router.route("/all-videos").get(getAllVideos);
 router
-  .route("/:videoId")
+  .route("/video/:id")
+  .get(getVideoById)
   .patch(authMiddleware, upload.single("thumbnail"), updateVideo)
   .delete(authMiddleware, deleteVideo);
+  
 
 export default router;
